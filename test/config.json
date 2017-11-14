@@ -1,0 +1,24 @@
+{
+  "source": {
+    "protocol": "udp4"
+  , "address":"239.200.5.2"
+  , "port":2002
+  , "multicast": true
+  }
+, "sinks":
+  [
+    {
+      "description":"Arte, audio allemand, sous-titres français"
+    , "source": {
+        "protocol": "udp4"
+      , "port": 10000
+      , "address": "10.1.1.1"
+      }
+    , "multicast": true
+    , "address":"239.200.5.2"
+    , "port":12002
+    , "pids":[320,333,340]
+    }
+  ]
+}
+

@@ -1,0 +1,20 @@
+{
+  "name": "wicked-credit",
+  "version": "1.0.0",
+  "description": "TS per-PID remuxer",
+  "main": "index.js",
+  "scripts": {
+    "prepublish": "coffee -c *.coffee.md",
+    "test": "mocha"
+  },
+  "author": "Stéphane Alnet <stephane@shimaore.net> (https://stephane.shimaore.net/)",
+  "license": "Unlicense",
+  "private": "kwaoo",
+  "dependencies": {
+    "seem": "^2.0.0",
+    "tangible": "^1.9.0"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.12.7"
+  }
+}
