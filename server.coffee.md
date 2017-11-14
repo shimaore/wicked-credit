@@ -57,7 +57,7 @@ Configuration:
       console.log """
         Received: #{received_udp} UDP, #{received_ts} TS. Sent: #{sent_udp} UDP, #{sent_ts} TS.
       """
-    setInterval reporter, 1000
+    # setInterval reporter, 1000
 
     receiver = (opts) ->
       {protocol,port,address,multicast} = opts
