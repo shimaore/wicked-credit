@@ -72,6 +72,8 @@ Configuration:
 
         r.emit 'ts_packets', ts_packets
 
+        return
+
       (do seem ->
           yield promisify r, r.bind, {port, address, exclusive: false}
           r.addMembership address if multicast
@@ -87,7 +89,6 @@ Configuration:
 
       t = dgram.createSocket source?.protocol ? 'udp4'
 
-      send_args = []
       receiver.on 'ts_packets', (ts_packets) ->
         my_packets = ts_packets
           .filter ({pid}) -> my_pids.has pid
@@ -100,15 +101,16 @@ Configuration:
         sent_udp++
         sent_ts += nb_packets
 
+        return
+
       (do seem ->
         if source?
           args = []
           args.push source.port if source.port?
           args.push source.address if source.address?
           yield promisify t, t.bind, args... if args.length > 0
-          if multicast
-            t.setMulticastInterface? source.address
-          else
+          t.setMulticastInterface? source.address if multicast
+
       ).catch (error) ->
         console.error opts, error
         process.exit 1
