@@ -12,7 +12,7 @@ Analysis:
 - Each TS packet carries the PID it is associated with; the PID identifies an ES within the TS.
 - The PID's semantics are provided by the PMT.
 - The [Elementary Stream Types](https://en.wikipedia.org/wiki/Program-specific_information#Elementary_stream_types) indicated by each PID are not sufficient to know the content of the stream.
-- PMT's in broadcast media are relatively static and can be known in advance (e.g. from http://fr.kingofsat.fr/pos-13E.php, or dvblast output: `dvblastctl -r /tmp/dvblast-3-2.sock get_pmt 1031`).
+- However PMT's in broadcast media are relatively static and can be known in advance (e.g. from http://fr.kingofsat.fr/pos-13E.php, or from dvblast output: `dvblastctl -r /tmp/dvblast-3-2.sock get_pmt 1031`).
 
 Solution:
 
@@ -144,7 +144,7 @@ and if the source is marked `multicast`, make sure we register for membership on
           r.addMembership address if multicast
 
 If startup failed, exit the process.
-FIXME: Should simply report the error if we allow for dynamically add/remove mappings.
+FIXME: Should simply report the error if we allow to dynamically add/remove mappings.
 
       ).catch (error) ->
         console.error opts, error
@@ -216,7 +216,7 @@ Asynchronously start the sender,
 
       (do seem ->
 
-which only need to be bound if the information was provided.
+which only needs to be bound if the information was provided.
 
         if source?
 
@@ -228,7 +228,7 @@ We first bind the socket to the (optional) port and (optional) address,
           yield promisify t, t.bind, args... if args.length > 0
 
 and if the destination is multicast, we request multicast access on the corresponding interface.
-Note: older Node.js does not support `setMulticastInterface`, again one should probably not use those older versions.
+Note: older Node.js do not support `setMulticastInterface`, again one should probably not use those older versions.
 
           t.setMulticastInterface? source.address if multicast
 
