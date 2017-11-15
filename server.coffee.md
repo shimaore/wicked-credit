@@ -38,14 +38,8 @@ Configuration:
     dgram = require 'dgram'
     seem = require 'seem'
     {debug,hand} = (require 'tangible') 'wicked-credit:server'
+    promisify = require './promisify'
 
-    promisify = (obj,method,args...) ->
-      new Promise (resolve,reject) ->
-        method.call obj, args..., (err,res) ->
-          if err?
-            reject err
-          else
-            resolve res
 
     TS_PACKET_LENGTH = 188
 
