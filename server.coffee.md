@@ -32,6 +32,7 @@ Configuration
 "address":"239.200.5.2",
 "port":2002,
 "multicast": true
+"h264": true
 }
 "sinks":[
 {
@@ -78,7 +79,7 @@ Receiver
 The receiver is responsible for handling incoming UDP packets, and split them into individual TS packets.
 
     receiver = (opts) ->
-      {protocol,port,address,multicast} = opts
+      {protocol,port,address,multicast,h264} = opts
 
 Create the UDP socket, making sure the port and address we will use can be shared with other processes (typically ffmpeg).
 
@@ -114,13 +115,87 @@ reading the header of each TS packet
 
           header = ts_packet.readUInt32BE 0
 
-in order to extract the ES' PID
+in order to extract the ES' PID;
 
           pid = (header & 0x001fff00) >> 8
 
-and build a data structure to hold the PID and the TS packet.
+#### Keyframe detection
 
-          {pid,ts_packet}
+For keyframe detection we parse the PES payload.
+
+First we figure out whether the adaptation field is present
+
+          adaptation_field_present = (header & 0x400000) > 0
+          ts_payload_offset = 4
+
+in which case we need to account for its length.
+
+          if adaptation_field_present
+            adaptation_field_length = ts_packet.readUint8 4
+            ts_payload_offset += 1 + adaptation_field_length
+
+In the first octet of the adaptation field itself we find the discontinuity indicator and the random access indicator
+(these are normally only used with MPEG streams).
+
+            adaptation_field = ts_packet.readUint8 5
+            discontinuity_indicator = (adaptation_field & 0x80) > 0
+            random_access_indicator = (adaptation_field & 0x40) > 0
+
+For H.264 parsing,
+
+          if h264
+
+the PES payload starts with 00 00 01 (packet start code prefix),
+while the fourth octet is the PES stream id
+
+            pes_stream_id = ts_packet.readUint8 ts_payload_offset + 3
+
+and the fifth and sixth are PES packet length (which for video tend to be zero).
+
+If the PES indicates we are effectively dealing with video,
+
+            if (pes_stream_id & 0xf0) is 0xe0 # video
+
+assume the optional PES header is present
+
+              optional_pes_header = ts_packet.readUint16BE ts_payload_offset + 6
+
+and gather the data alignment indicator.
+
+              pes_data_alignment_indicator = (optional_pes_header & 0x0400) > 0
+
+Then skip the PES optional fields
+
+              pes_optional_field_length = ts_packet.readUint8 ts_payload_offset + 8
+
+and access the PES payload.
+
+              pes_payload_offset = ts_payload_offset + 1 + pes_optional_field_length
+
+The H.264 (Annex B) stream starts at `pes_payload_offset`;
+The first four octets are the Annex B framing (00 00 00 01), and
+the next octet contains the nal-ref-idc and the nal-unit-type.
+
+              nal_first_octet = ts_packet.readUint8 pes_payload_offset + 4
+              nal_unit_type = nal_first_octet & 0x1f
+
+H.264 keyframes have nal-unit-type 5.
+
+              h264_iframe = nal_unit_type is 5
+
+Finally build a data structure to hold the PID, TS packet, and other information about this TS packet.
+
+          {
+            pid
+            ts_packet
+            ts_discontinuity_indicator
+            ts_random_access_indicator
+            pes_data_alignment_indicator
+            h264_iframe
+          }
+
+        if h264_iframe
+          debug 'H.264 I Frame', pid
 
 For each received UDP packet we emit one message towards the sending side, with an array containing the series of `{pid,ts_packets}` from the input.
 
