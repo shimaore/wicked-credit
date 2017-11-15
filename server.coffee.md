@@ -7,7 +7,7 @@ Although `ffmpeg` may be used for a similar goal (using the `copy` codec), it on
 
 Analysis:
 
-- TS Streams (such a made available by third parties or by `dvblast`) are transported as UDP multicast.
+- TS Streams (such as those made available by third parties or by `dvblast`) are transported as UDP multicast.
 - A TS stream is made out of [TS packets](https://en.wikipedia.org/wiki/MPEG_transport_stream#Packet).
 - Each TS packet carries the PID it is associated with; the PID identifies an ES within the TS.
 - The PID's semantics are provided by the PMT.
