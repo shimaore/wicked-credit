@@ -532,8 +532,6 @@ Create the outbound socket.
         ]
         msg = Buffer.concat my_packets
 
-        console.log 'Sending ', msg.toString 'hex'
-
         t.send msg, 0, 3 * TS_PACKET_LENGTH, port, address
         sent_udp++
 
