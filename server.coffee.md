@@ -239,7 +239,7 @@ On the other hand, if this is the continuation of the PES packet,
 concatenate the last-pad and the current payload,
 
               h264_last_pad.copy h264_buf, 0
-              ts_packet.copy h264_buf, ts_payload_offset
+              ts_packet.copy h264_buf, h264_last_pad.length, ts_payload_offset
               h264_nal_unit_length = h264_last_pad.length + TS_PACKET_LENGTH-ts_payload_offset
 
 and to get things started, look for an H.264 start code pattern in the buffer (per Annex B).
