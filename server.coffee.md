@@ -101,6 +101,8 @@ The receiver is responsible for handling incoming UDP packets, and split them in
     receiver = seem (opts) ->
       {protocol,port,address,multicast,h264} = opts
 
+      debug 'Starting receiver', opts
+
 Create the UDP socket, making sure the port and address we will use can be shared with other processes (typically ffmpeg).
 
       r = dgram.createSocket
@@ -354,6 +356,8 @@ Note: we do not attempt to "optimize" things by packing multiple ES into a small
     transcribe_as_udp = seem (receiver,opts) ->
       {source,multicast,address,port,pids} = opts
 
+      debug 'Starting transcribe as UDP', opts
+
 Build a `Set` object in order to efficiently query the list of PIDs.
 
       my_pids = new Set pids
@@ -426,7 +430,9 @@ We're talking about [RFC8216](https://tools.ietf.org/html/rfc8216) here.
     path = require 'path'
 
     transcribe_as_hls = seem (receiver,opts) ->
-      {directory,m3u8,base_uri,target_duration,keep_segments,pids} = opts
+      {directory,m3u8,base_uri,target_duration,keep_segments,buffer_size,pids} = opts
+
+      debug 'Starting transcribe as HLS', opts
 
 Define defaults.
 
@@ -434,6 +440,7 @@ Define defaults.
       base_uri ?= ''
       target_duration ?= 6000
       keep_segments ?= 5
+      buffer_size ?= 1024*1024 # 1Mio
 
 Build a `Set` object in order to efficiently query the list of PIDs.
 
@@ -542,18 +549,44 @@ First make sure we open a new TS file,
 
 For each inbound UDP packet that was split into TS packets by the receiver,
 
-      receiver.on 'ts_packets', (ts_packets) ->
+      ts_buf_len = TS_PACKET_LENGTH * (buffer_size // TS_PACKET_LENGTH)
+      ts_buf = Buffer.alloc ts_buf_len
+      ts_buf_index = 0
+
+buffer up to `buffer_size` octets,
+
+      ts_buf_append = (buf) ->
+        # assert buf.length is TS_PACKET_LENGTH
+        buf.copy ts_buf, TS_PACKET_LENGTH, ts_buf_index, 0, TS_PACKET_LENGTH
+        ts_buf_index += TS_PACKET_LENGTH
+        if ts_buf_index >= ts_buf_len
+          ts_buf_flush()
+        else
+          Promise.resolve()
+
+      ts_buf_flush = ->
+        if ts_buf_index > 0
+          save_buf = Buffer.from(ts_buf).slice 0, ts_buf_index
+          ts_buf_index = 0
+          promisify current_segment.file, current_segment.file.write, save_buf
+        else
+          Promise.resolve()
+
+      receiver.on 'ts_packets', hand (ts_packets) ->
 
         current_ts = Date.now()
 
-        ts_packets
-          .filter ({pid}) -> my_pids.has pid
-          .forEach ({ts_packet,h264_iframe}) ->
-            if h264_iframe and current_ts >= current_segment.target_timestamp
-              new_ts_file()
+        for p in ts_packets when my_pids.has p.pid
+          {ts_packet,h264_iframe} = p
+          if p.h264_iframe and current_ts >= current_segment.target_timestamp
+            yield ts_buf_flush()
+            yield new_ts_file()
 
-            heal promisify current_segment.file, current_segment.file.write, ts_packet
-            return
+          yield ts_buf_append p.ts_packet
+
+        return
+
+      return
 
 Main
 ----
@@ -573,6 +606,7 @@ and a sending process for each sink.
         else
           yield transcribe_as_udp r, opts
 
+      debug 'Started.'
       return
 
 Startup
