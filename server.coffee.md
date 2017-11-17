@@ -69,6 +69,7 @@ Configuration
 
 The whole problem is made simple by the fact that TS packets have a static length and are aligned on UDP packet boundaries.
 This means we do not have to do framing inside the UDP packets, and deducing the number of TS packets in a UDP packet is trivial.
+(See ITU H.220.0 for more information on TS.)
 
     TS_PACKET_LENGTH = 188
 
@@ -98,10 +99,99 @@ Receiver
 
 The receiver is responsible for handling incoming UDP packets, and split them into individual TS packets.
 
+    crc32 = require 'buffer-crc32'
+    make_frame = (src) ->
+      frame = Buffer.alloc TS_PACKET_LENGTH, 0xff
+      src.copy frame, 0
+      (crc32 src).copy frame, src.length
+      frame
+
+Not sure where this is defined, FFmpeg includes those at the top of their TS files.
+
+    SDT = make_frame Buffer.from [
+      0x47, 0x40, 0x11, 0x18 # PID 0x011
+      0x00 # pointer
+      0x42 # SDT
+      0xf0, 0x25 # Length: 37
+      0x00, 0x01 # TS ID 1
+      0xc1 # Currently applicable
+      0x00, 0x00 # Section number, last section number
+
+      0xff, 0x01 # Original network ID
+      0xff # reserved
+      0x00, 0x01 # Service ID 1
+      0xfc
+      0x80, 0x13 # Descriptors Loop Length: 0x013
+      0x48 # Descriptor tag 0x48
+
+      0x11 # Length (apparently not including the next octet?)
+      0x01 # digitial television service
+      0x05 # Provider name length
+      0x4B, 0x2D, 0x73, 0x79, 0x73
+      0x09 # Service name length
+      0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x30, 0x31
+    ]
+
+PAT structure from H.220.0
+
+    PAT = make_frame Buffer.from [
+      0x47, 0x40, 0x00, 0x19 # PID 0x0 = PAT
+
+H.220.0 section 2.4.4.1 table 2-29
+
+      0x00 # PSI pointer
+
+H.220.0 Table 2-30 page 49
+
+      0x00 # Table ID: PAS (see H.220.0 section 2.4.4.4 table 2-31)
+      0xb0, 0x0d # Length: 13 (including CRC, see H.220.0 2.4.4.5)
+      0x00, 0x01 # TS ID 1
+      0xc1 # version 0, currently applicable
+      0x00 # section 0
+      0x00 # last-section 0
+
+      0x00, 0x01 # Program number 1
+      0xff, 0x00 # PID 0x1000
+    ]
+
+    pmt_hdr = Buffer.from [
+      0x47, 0x50, 0x00, 0x19 # PID 0x1000
+
+H.220.0 section 2.4.4.1 table 2-29
+
+      0x00 # PSI pointer
+
+Program Map Table per H.220.0 section 2.4.4.8
+
+      0x02 # Table ID: PMT
+      0xb0, 0x1c # Length: 28 (including CRC per H.220.0 2.4.4.9)
+      0x00, 0x01 # Program number 1
+      0xc1 # version 0, currently applicable
+      0x00 # section 0
+      0x00 # last-section 0
+
+      0xe1, 0x00 # PCR PID: 0x0100
+      0xf0, 0x00 # Program Info Length: 0 (no descriptors)
+    ]
+    make_pmt = (pids,pmt_desc) ->
+      pmts = pids
+        .map (pid) -> pmt_desc[pid]
+        .filter (b) -> b?
+      pmt_src = Buffer.concat [
+        pmt_hdr
+        pmts...
+      ]
+      pmt_src.writeUInt16BE 0xb000 + (pmt_src.length - 8) + 4, 6
+      make_frame pmt_src
+
     receiver = seem (opts) ->
       {protocol,port,address,multicast,h264} = opts
 
       debug 'Starting receiver', opts
+
+Set of PIDs that carry PMT.
+
+      psi_pids = null
 
 Create the UDP socket, making sure the port and address we will use can be shared with other processes (typically ffmpeg).
 
@@ -155,7 +245,7 @@ in order to extract the ES' PID;
 
           pid = (header & 0x001fff00) >> 8
 
-#### Keyframe detection
+#### PES Framing
 
 The PUSI indicator is present on the first higher-protocol frame.
 
@@ -182,7 +272,76 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             adaptation_field = ts_packet.readUInt8 5
             ts_discontinuity_indicator = (adaptation_field & 0x80) > 0
             ts_random_access_indicator = (adaptation_field & 0x40) > 0
-            # console.log "pid #{pid} disc #{ts_discontinuity_indicator} rai #{ts_random_access_indicator}" if ts_discontinuity_indicator or ts_random_access_indicator
+
+          data = {
+            pid
+            ts_packet
+            ts_discontinuity_indicator
+            ts_random_access_indicator
+          }
+
+          # console.log "TS PID #{pid} #{ts_discontinuity_indicator}"
+
+#### PSI
+
+          if pusi and pid < 4 or psi_pids?.has pid
+
+            pointer_field = ts_packet.readUInt8 ts_payload_offset
+            psi_offset = ts_payload_offset + 1 + pointer_field
+
+            table_id = ts_packet.readUInt8 psi_offset + 0
+            # console.log "PSI #{table_id}", ts_packet.slice(psi_offset).toString 'hex'
+
+#### PAT
+
+          if table_id is 0
+
+            pat_len = 0x03ff & ts_packet.readUInt16BE psi_offset + 1
+            nb_pmt = (pat_len - 4 - 5) // 4
+            psi_pids = new Set [0...nb_pmt].map (i) ->
+              pmt_id = 0x1fff & ts_packet.readUInt16BE 4*i + psi_offset + 10
+            # console.log "PAT (#{nb_pmt}) → psi_pids", psi_pids
+
+          if pid < 4
+            return data
+
+#### PMT
+
+          if table_id is 2
+
+            section_length = 0x03ff & ts_packet.readUInt16BE psi_offset + 1
+            info_len = 0x03ff & ts_packet.readUInt16BE psi_offset + 10
+
+            # console.log "PMT #{pid}: len #{section_length} info-len #{info_len}"
+
+            desc_start = psi_offset + 12 + info_len
+            desc_end = desc_start + info_len
+
+Map ES PIDs to their PMT (binary/Buffer) description
+
+            pmt_desc = {}
+
+            while desc_start < section_length - 4 - 9
+
+              stream_type = ts_packet.readUInt8 desc_start + 0
+              es_pid = 0x1fff & ts_packet.readUInt16BE desc_start + 1
+              es_info_len = 0x0fff & ts_packet.readUInt16BE desc_start + 3
+
+              # console.log "PMT #{pid}: type #{stream_type} pid #{es_pid} info #{es_info_len}"
+
+              next_start = desc_start + 5 + es_info_len
+              pmt_desc[es_pid] = ts_packet.slice desc_start, next_start
+
+              desc_start = next_start
+
+            r.emit 'pmt', pmt_desc
+            return data
+
+#### PES only
+
+          return data if table_id?
+
+#### Keyframe detection
 
           h264_nal_unit_start = null
 
@@ -218,6 +377,8 @@ Then skip the PES optional fields
 and access the PES payload.
 
               pes_payload_offset = ts_payload_offset + 8 + 1 + pes_optional_field_length
+
+          data.pes_data_alignment_indicator = pes_data_alignment_indicator
 
 ##### Last pad
 
@@ -310,14 +471,9 @@ Finally build a data structure to hold the PID, TS packet, and other information
 
           # console.log ">> H.264 I-Frame for PID #{pid} (#{pusi} #{h264_nal_unit_start}) <<" if h264_iframe
 
-          {
-            pid
-            ts_packet
-            ts_discontinuity_indicator
-            ts_random_access_indicator
-            pes_data_alignment_indicator
-            h264_iframe
-          }
+          data.h264_iframe = h264_iframe
+
+          return data
 
 For each received UDP packet we emit one message towards the sending side, with an array containing the series of `{pid,ts_packets}` from the input.
 
@@ -367,6 +523,21 @@ Create the outbound socket.
       t = dgram.createSocket source?.protocol ? 'udp4'
 
 ### Message handler
+
+      receiver.on 'pmt', (pmt_desc) ->
+        my_packets = [
+          SDT
+          PAT
+          make_pmt pids, pmt_desc
+        ]
+        msg = Buffer.concat my_packets
+
+        console.log 'Sending ', msg.toString 'hex'
+
+        t.send msg, 0, 3 * TS_PACKET_LENGTH, port, address
+        sent_udp++
+
+        return
 
 For each inbound UDP packet that was split into TS packets by the receiver,
 
@@ -445,10 +616,6 @@ Define defaults.
 Build a `Set` object in order to efficiently query the list of PIDs.
 
       my_pids = new Set pids
-
-Add the PAT (this should allow us to meet RFC8216 section 3 without needing EXT-X-MAP).
-
-      my_pids.add 0
 
 Optionally create the directory if it does not exist (the parent directory must exist).
 
@@ -543,10 +710,6 @@ and record its metadata as the current segment.
 
 #### Process incoming data
 
-First make sure we open a new TS file,
-
-      new_ts_file()
-
 For each inbound UDP packet that was split into TS packets by the receiver,
 
       ts_buf_len = TS_PACKET_LENGTH * (buffer_size // TS_PACKET_LENGTH)
@@ -568,11 +731,23 @@ buffer up to `buffer_size` octets,
         if ts_buf_index > 0
           save_buf = Buffer.from(ts_buf).slice 0, ts_buf_index
           ts_buf_index = 0
-          promisify current_segment.file, current_segment.file.write, save_buf
+          promisify current_segment.file, current_segment.file.write, save_buf if current_segment.file?
         else
           Promise.resolve()
 
+      pmt_desc = null
+
+      receiver.on 'pmt', hand (value) ->
+        pmt_desc = value
+        if not current_segment.file?
+          yield new_ts_file()
+          yield ts_buf_append SDT
+          yield ts_buf_append PAT
+          yield ts_buf_append make_pmt pids, pmt_desc
+
       receiver.on 'ts_packets', hand (ts_packets) ->
+
+        return unless pmt_desc?
 
         current_ts = Date.now()
 
@@ -581,6 +756,9 @@ buffer up to `buffer_size` octets,
           if p.h264_iframe and current_ts >= current_segment.target_timestamp
             yield ts_buf_flush()
             yield new_ts_file()
+            yield ts_buf_append SDT
+            yield ts_buf_append PAT
+            yield ts_buf_append make_pmt pids, pmt_desc
 
           yield ts_buf_append p.ts_packet
 

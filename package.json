@@ -11,6 +11,7 @@
   "license": "Unlicense",
   "private": "kwaoo",
   "dependencies": {
+    "buffer-crc32": "^0.2.13",
     "seem": "^2.0.0",
     "tangible": "^1.9.0"
   },
