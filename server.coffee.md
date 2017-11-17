@@ -733,19 +733,19 @@ buffer up to `buffer_size` octets,
         else
           Promise.resolve()
 
-      pmt_desc = null
+      pmt_buf = null
 
-      receiver.on 'pmt', hand (value) ->
-        pmt_desc = value
+      receiver.on 'pmt', hand (pmt_desc) ->
+        pmt_buf = make_pmt pids, pmt_desc
         if not current_segment.file?
           yield new_ts_file()
           yield ts_buf_append SDT
           yield ts_buf_append PAT
-          yield ts_buf_append make_pmt pids, pmt_desc
+          yield ts_buf_append pmt_buf
 
       receiver.on 'ts_packets', hand (ts_packets) ->
 
-        return unless pmt_desc?
+        return unless pmt_buf?
 
         current_ts = Date.now()
 
@@ -756,7 +756,7 @@ buffer up to `buffer_size` octets,
             yield new_ts_file()
             yield ts_buf_append SDT
             yield ts_buf_append PAT
-            yield ts_buf_append make_pmt pids, pmt_desc
+            yield ts_buf_append pmt_buf
 
           yield ts_buf_append p.ts_packet
 
