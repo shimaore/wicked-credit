@@ -151,7 +151,7 @@ H.220.0 Table 2-30 page 49
       0x00 # last-section 0
 
       0x00, 0x01 # Program number 1
-      0xff, 0x00 # PID 0x1000
+      0xf0, 0x00 # PID 0x1000
     ]
 
     pmt_hdr = Buffer.from [
