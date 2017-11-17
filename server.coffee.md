@@ -729,9 +729,9 @@ buffer up to `buffer_size` octets,
         if ts_buf_index > 0
           save_buf = Buffer.from(ts_buf).slice 0, ts_buf_index
           ts_buf_index = 0
-          promisify current_segment.file, current_segment.file.write, save_buf if current_segment.file?
-        else
-          Promise.resolve()
+          if current_segment.file?
+            return promisify current_segment.file, current_segment.file.write, save_buf
+        Promise.resolve()
 
       pmt_buf = null
 
@@ -752,13 +752,13 @@ buffer up to `buffer_size` octets,
         for p in ts_packets when my_pids.has p.pid
           {ts_packet,h264_iframe} = p
           if p.h264_iframe and current_ts >= current_segment.target_timestamp
-            yield ts_buf_flush()
+            heal ts_buf_flush()
             yield new_ts_file()
             yield ts_buf_append SDT
             yield ts_buf_append PAT
             yield ts_buf_append pmt_buf
 
-          yield ts_buf_append p.ts_packet
+          heal ts_buf_append p.ts_packet
 
         return
 
