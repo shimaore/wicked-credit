@@ -557,7 +557,7 @@ buffer up to `buffer_size` octets,
 
       ts_buf_append = (buf) ->
         # assert buf.length is TS_PACKET_LENGTH
-        buf.copy ts_buf, TS_PACKET_LENGTH, ts_buf_index, 0, TS_PACKET_LENGTH
+        buf.copy ts_buf, ts_buf_index, 0, TS_PACKET_LENGTH
         ts_buf_index += TS_PACKET_LENGTH
         if ts_buf_index >= ts_buf_len
           ts_buf_flush()
