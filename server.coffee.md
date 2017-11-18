@@ -287,12 +287,14 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             adaptation_field = ts_packet.readUInt8 5
             ts_discontinuity_indicator = (adaptation_field & 0x80) > 0
             ts_random_access_indicator = (adaptation_field & 0x40) > 0
+            ts_pcr_flag = (adaptation_field & 0x10) > 0
 
           data = {
             pid
             ts_packet
             ts_discontinuity_indicator
             ts_random_access_indicator
+            ts_pcr_flag
           }
 
           # console.log "TS PID #{pid} #{ts_discontinuity_indicator}"
@@ -765,8 +767,7 @@ buffer up to `buffer_size` octets,
         current_ts = Date.now()
 
         for p in ts_packets when my_pids.has p.pid
-          {ts_packet,h264_iframe} = p
-          if p.h264_iframe and current_ts >= current_segment.target_timestamp
+          if p.ts_pcr_flag and p.h264_iframe and current_ts >= current_segment.target_timestamp
             heal ts_buf_flush()
             yield new_ts_file()
             yield ts_buf_append SDT
