@@ -99,20 +99,26 @@ Receiver
 
 The receiver is responsible for handling incoming UDP packets, and split them into individual TS packets.
 
-    crc32 = require 'buffer-crc32'
-    make_frame = (src) ->
+    crc32 = require './crc32'
+    crc32_base = -1
+
+    make_frame = (hdr,bdy) ->
       frame = Buffer.alloc TS_PACKET_LENGTH, 0xff
-      src.copy frame, 0
-      (crc32 src).copy frame, src.length
+      hdr.copy frame, 0
+      bdy.copy frame, hdr.length
+      crc = crc32 bdy, crc32_base
+      frame.writeInt32LE crc, hdr.length+bdy.length
       frame
 
 Not sure where this is defined, FFmpeg includes those at the top of their TS files.
 
-    SDT = make_frame Buffer.from [
+    sdt_hdr = Buffer.from [
       0x47, 0x40, 0x11, 0x18 # PID 0x011
       0x00 # pointer
+    ]
+    sdt_bdy = Buffer.from [
       0x42 # SDT
-      0xf0, 0x25 # Length: 37
+      0xf0, 0x24 # Length: 36
       0x00, 0x01 # TS ID 1
       0xc1 # Currently applicable
       0x00, 0x00 # Section number, last section number
@@ -131,15 +137,19 @@ Not sure where this is defined, FFmpeg includes those at the top of their TS fil
       0x09 # Service name length
       0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x30, 0x31
     ]
+    SDT = make_frame sdt_hdr, sdt_bdy
 
 PAT structure from H.220.0
 
-    PAT = make_frame Buffer.from [
+    pat_hdr = Buffer.from [
       0x47, 0x40, 0x00, 0x19 # PID 0x0 = PAT
 
 H.220.0 section 2.4.4.1 table 2-29
 
       0x00 # PSI pointer
+
+    ]
+    pat_bdy = Buffer.from [
 
 H.220.0 Table 2-30 page 49
 
@@ -152,7 +162,9 @@ H.220.0 Table 2-30 page 49
 
       0x00, 0x01 # Program number 1
       0xf0, 0x00 # PID 0x1000
+
     ]
+    PAT = make_frame pat_hdr, pat_bdy
 
     pmt_hdr = Buffer.from [
       0x47, 0x50, 0x00, 0x19 # PID 0x1000
@@ -160,6 +172,9 @@ H.220.0 Table 2-30 page 49
 H.220.0 section 2.4.4.1 table 2-29
 
       0x00 # PSI pointer
+
+    ]
+    pmt_bdy = Buffer.from [
 
 Program Map Table per H.220.0 section 2.4.4.8
 
@@ -178,11 +193,11 @@ Program Map Table per H.220.0 section 2.4.4.8
         .map (pid) -> pmt_desc[pid]
         .filter (b) -> b?
       pmt_src = Buffer.concat [
-        pmt_hdr
+        pmt_bdy
         pmts...
       ]
       pmt_src.writeUInt16BE 0xb000 + (pmt_src.length - 8) + 4, 6
-      make_frame pmt_src
+      make_frame pmt_hdr, pmt_src
 
     receiver = seem (opts) ->
       {protocol,port,address,multicast,h264} = opts
