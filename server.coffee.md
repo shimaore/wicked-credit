@@ -196,7 +196,7 @@ Program Map Table per H.220.0 section 2.4.4.8
         pmt_bdy
         pmts...
       ]
-      pmt_src.writeUInt16BE 0xb000 + (pmt_src.length - 8) + 4, 6
+      pmt_src.writeUInt16BE 0xb000 + (pmt_src.length - 3) + 4, 1
       make_frame pmt_hdr, pmt_src
 
     receiver = seem (opts) ->
