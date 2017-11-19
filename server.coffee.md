@@ -642,15 +642,15 @@ Collect statistics.
         return
 
       pmt_pid = null
-      pat_buf = null
-      pmt_buf = null
+      last_ops = null
       pat_ctx = cc:0
       pmt_ctx = cc:0
+      pat = -> if last_ops? then make_pat last_opts, pat_ctx else null
+      pmt = -> if last_ops? then make_pmt pids, last_opts, pmt_ctx else null
 
       receiver.on 'pmt', (opts) ->
         {pmt_pid} = opts
-        pat_buf = make_pat opts, pat_ctx
-        pmt_buf = make_pmt pids, opts, pmt_ctx
+        last_ops = opts
         return
 
 For each inbound UDP packet that was split into TS packets by the receiver,
@@ -665,20 +665,13 @@ those TS packets whose PID are in our desired set
           pkt = p.ts_packet
           switch
             when pid is 0
-              if pat_buf?
-                set_cc pat_buf, pat_ctx
-              else
-                null
+              pat()
             when pid is pmt_pid
-              if pmt_buf?
-                set_cc pmt_buf, pmt_ctx
-              else
-                null
+              pmt()
             when my_pids.has pid
               pkt
             else
-              # null
-              pkt
+              null
 
         return
 
@@ -848,24 +841,25 @@ buffer up to `buffer_size` octets,
         Promise.resolve()
 
       pmt_pid = null
-      pat_buf = null
-      pmt_buf = null
+      last_ops = null
       pat_ctx = cc:0
       pmt_ctx = cc:0
 
+      pat = -> if last_ops? then make_pat last_ops, pat_ctx else null
+      pmt = -> if last_ops? then make_pmt pids, last_opts, pmt_ctx else null
+
       receiver.on 'pmt', hand (opts) ->
+        last_ops = opts
         {pmt_pid} = opts
-        pat_buf = make_pat opts, pat_ctx
-        pmt_buf = make_pmt pids, opts, pmt_ctx
         if not current_segment.file?
           yield rotate_ts_file()
           yield ts_buf_append SDT
-          yield ts_buf_append pat_buf
-          yield ts_buf_append pmt_buf
+          yield ts_buf_append pat()
+          yield ts_buf_append pmt()
 
       receiver.on 'ts_packets', hand (ts_packets) ->
 
-        return unless pat_buf? and pmt_buf?
+        return unless last_ops?
 
         current_ts = Date.now()
 
@@ -873,21 +867,19 @@ buffer up to `buffer_size` octets,
           pkt = p.ts_packet
           switch
             when p.pid is 0
-              set_cc pat_buf, pat_ctx
-              pkt = pat_buf
+              pkt = pat()
             when p.pid is pmt_pid
-              set_cc pmt_buf, pmt_ctx
-              pkt = pmt_buf
+              pkt = pmt()
             when my_pids.has p.pid
               if p.h264_iframe and current_ts >= current_segment.target_timestamp
                 heal ts_buf_flush()
                 yield rotate_ts_file()
                 yield ts_buf_append SDT
-                yield ts_buf_append pat_buf
-                yield ts_buf_append pmt_buf
+                yield ts_buf_append pat()
+                yield ts_buf_append pmt()
 
             else
-              # pkt = null
+              pkt = null
 
           heal ts_buf_append pkt
 
