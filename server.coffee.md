@@ -829,6 +829,7 @@ buffer up to `buffer_size` octets,
             return promisify current_segment.file, current_segment.file.write, save_buf
         Promise.resolve()
 
+      pmt_pid = null
       pat_buf = null
       pmt_buf = null
 
