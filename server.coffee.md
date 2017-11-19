@@ -119,18 +119,19 @@ Set PID
     set_pid = (ts_packet,pid) ->
       pid_bytes = (pid & 0x1fff) | (0xe000 & ts_packet.readUInt16BE 1)
       ts_packet.writeUInt16BE pid_bytes, 1
+      return
 
 Set Continuity Counter
 
     set_cc = (ts_packet,ctx) ->
-      ts_packet.writeUInt8 (ctx.cc + 0xf0 & ts_packet.readUInt8 3), 3
+      ts_packet.writeUInt8 (ctx.cc & 0x0f) | (0xf0 & ts_packet.readUInt8 3), 3
       ctx.cc = 0x0f & (ctx.cc+1)
-      ts_packet
+      return
 
 Not sure where this is defined, FFmpeg includes those at the top of their TS files.
 
     sdt_hdr = Buffer.from [
-      0x47, 0x40, 0x11, 0x18 # PID 0x011
+      0x47, 0x40, 0x11, 0x10 # PID 0x011
       0x00 # pointer
     ]
     sdt_bdy = Buffer.from [
@@ -159,7 +160,7 @@ Not sure where this is defined, FFmpeg includes those at the top of their TS fil
 PAT structure from H.220.0
 
     pat_hdr = Buffer.from [
-      0x47, 0x40, 0x00, 0x19 # PID 0x0 = PAT
+      0x47, 0x40, 0x00, 0x10 # PID 0x0 = PAT
 
 H.220.0 section 2.4.4.1 table 2-29
 
@@ -187,7 +188,7 @@ H.220.0 Table 2-30 page 49
       make_frame pat_hdr, pat_bdy
 
     pmt_hdr = Buffer.from [
-      0x47, 0x50, 0x00, 0x19 # PID 0x1000
+      0x47, 0x50, 0x00, 0x10 # PID 0x1000
 
 H.220.0 section 2.4.4.1 table 2-29
 
