@@ -112,10 +112,7 @@ The receiver is responsible for handling incoming UDP packets, and split them in
 
 Erase PID
 
-    erase_pid = (ts_packet) ->
-      pid_bytes = 0x1fff | ts_packet.readUInt16BE 1
-      ts_packet.writeUInt16BE pid_bytes, 1
-      ts_packet
+    FILLER = Buffer.alloc TS_PACKET_LENGTH, 0xff
 
 Set PID
 
@@ -665,13 +662,13 @@ those TS packets whose PID are in our desired set
           pkt = p.ts_packet
           switch
             when pid is 0
-              pat_buf ? erase_pid pkt
+              pat_buf ? FILLER
             when pid is pmt_pid
-              pmt_buf ? erase_pid pkt
+              pmt_buf ? FILLER
             when my_pids.has pid
               pkt
             else
-              erase_pid pkt
+              FILLER
 
         return
 
@@ -877,7 +874,7 @@ buffer up to `buffer_size` octets,
                 yield ts_buf_append pmt_buf
 
             else
-              erase_pid pkt
+              pkt = FILLER
 
           heal ts_buf_append pkt
 
