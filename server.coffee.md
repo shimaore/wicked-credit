@@ -123,6 +123,13 @@ Set PID
       pid_bytes = (pid & 0x1fff) | (0xe000 & ts_packet.readUInt16BE 1)
       ts_packet.writeUInt16BE pid_bytes, 1
 
+Set Continuity Counter
+
+    set_cc = (ts_packet,ctx) ->
+      ts_packet.wruiteUInt8 (cc + 0xf0 & ts_packet.readUInt8 3)
+      ctx.cc = 0x0f & (ctx.cc+1)
+      ts_packet
+
 Not sure where this is defined, FFmpeg includes those at the top of their TS files.
 
     sdt_hdr = Buffer.from [
@@ -174,13 +181,13 @@ H.220.0 Table 2-30 page 49
       0x00 # last-section 0
 
       0x00, 0x01 # Program number 1
-      0xf0, 0x00 # PID 0x1000
+      0xf0, 0x00 # PMT PID 0x1000
 
     ]
-    make_pat = ({pmt_pid}) ->
-      PAT = make_frame pat_hdr, pat_bdy
-      PAT.writeUInt16BE 0xe000 | pmt_pid, 15
-      PAT
+    make_pat = ({pmt_pid},ctx) ->
+      set_cc pat_hdr, ctx
+      pat_bdy.writeUInt16BE 0xe000 | pmt_pid, 10
+      make_frame pat_hdr, pat_bdy
 
     pmt_hdr = Buffer.from [
       0x47, 0x50, 0x00, 0x19 # PID 0x1000
@@ -204,8 +211,9 @@ Program Map Table per H.220.0 section 2.4.4.8
       0xe1, 0x00 # PCR PID: 0x0100
       0xf0, 0x00 # Program Info Length: 0 (no descriptors)
     ]
-    make_pmt = (pids,{pmt_desc,pmt_pid,pcr_pid}) ->
+    make_pmt = (pids,{pmt_desc,pmt_pid,pcr_pid},ctx) ->
       set_pid pmt_hdr, pmt_pid
+      set_cc pmt_hdr, ctx
       pmts = pids
         .map (pid) -> pmt_desc[pid]
         .filter (b) -> b?
@@ -636,11 +644,13 @@ Collect statistics.
       pmt_pid = null
       pat_buf = null
       pmt_buf = null
+      pat_ctx = cc:0
+      pmt_ctx = cc:0
 
       receiver.on 'pmt', (opts) ->
         {pmt_pid} = opts
-        pat_buf = make_pat opts
-        pmt_buf = make_pmt pids, opts
+        pat_buf = make_pat opts, pat_ctx
+        pmt_buf = make_pmt pids, opts, pmt_ctx
         return
 
 For each inbound UDP packet that was split into TS packets by the receiver,
@@ -832,11 +842,13 @@ buffer up to `buffer_size` octets,
       pmt_pid = null
       pat_buf = null
       pmt_buf = null
+      pat_ctx = cc:0
+      pmt_ctx = cc:0
 
       receiver.on 'pmt', hand (opts) ->
         {pmt_pid} = opts
-        pat_buf = make_pat opts
-        pmt_buf = make_pmt pids, opts
+        pat_buf = make_pat opts, pat_ctx
+        pmt_buf = make_pmt pids, opts, pmt_ctx
         if not current_segment.file?
           yield rotate_ts_file()
           yield ts_buf_append SDT
