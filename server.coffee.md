@@ -642,15 +642,15 @@ Collect statistics.
         return
 
       pmt_pid = null
-      last_ops = null
+      last_opts = null
       pat_ctx = cc:0
       pmt_ctx = cc:0
-      pat = -> if last_ops? then make_pat last_opts, pat_ctx else null
-      pmt = -> if last_ops? then make_pmt pids, last_opts, pmt_ctx else null
+      pat = -> if last_opts? then make_pat last_opts, pat_ctx else null
+      pmt = -> if last_opts? then make_pmt pids, last_opts, pmt_ctx else null
 
       receiver.on 'pmt', (opts) ->
         {pmt_pid} = opts
-        last_ops = opts
+        last_opts = opts
         return
 
 For each inbound UDP packet that was split into TS packets by the receiver,
@@ -841,15 +841,15 @@ buffer up to `buffer_size` octets,
         Promise.resolve()
 
       pmt_pid = null
-      last_ops = null
+      last_opts = null
       pat_ctx = cc:0
       pmt_ctx = cc:0
 
-      pat = -> if last_ops? then make_pat last_ops, pat_ctx else null
-      pmt = -> if last_ops? then make_pmt pids, last_opts, pmt_ctx else null
+      pat = -> if last_opts? then make_pat last_opts, pat_ctx else null
+      pmt = -> if last_opts? then make_pmt pids, last_opts, pmt_ctx else null
 
       receiver.on 'pmt', hand (opts) ->
-        last_ops = opts
+        last_opts = opts
         {pmt_pid} = opts
         if not current_segment.file?
           yield rotate_ts_file()
@@ -859,7 +859,7 @@ buffer up to `buffer_size` octets,
 
       receiver.on 'ts_packets', hand (ts_packets) ->
 
-        return unless last_ops?
+        return unless last_opts?
 
         current_ts = Date.now()
 
