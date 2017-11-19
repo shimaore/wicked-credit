@@ -119,14 +119,14 @@ Set PID
     set_pid = (ts_packet,pid) ->
       pid_bytes = (pid & 0x1fff) | (0xe000 & ts_packet.readUInt16BE 1)
       ts_packet.writeUInt16BE pid_bytes, 1
-      return
+      ts_packet
 
 Set Continuity Counter
 
     set_cc = (ts_packet,ctx) ->
       ts_packet.writeUInt8 (ctx.cc & 0x0f) | (0xf0 & ts_packet.readUInt8 3), 3
       ctx.cc = 0x0f & (ctx.cc+1)
-      return
+      ts_packet
 
 Not sure where this is defined, FFmpeg includes those at the top of their TS files.
 
@@ -665,9 +665,15 @@ those TS packets whose PID are in our desired set
           pkt = p.ts_packet
           switch
             when pid is 0
-              pat_buf ? null
+              if pat_buf?
+                set_cc pat_buf, pat_ctx
+              else
+                null
             when pid is pmt_pid
-              pmt_buf ? null
+              if pmt_buf?
+                set_cc pmt_buf, pmt_ctx
+              else
+                null
             when my_pids.has pid
               pkt
             else
@@ -867,8 +873,10 @@ buffer up to `buffer_size` octets,
           pkt = p.ts_packet
           switch
             when p.pid is 0
+              set_cc pat_buf, pat_ctx
               pkt = pat_buf
             when p.pid is pmt_pid
+              set_cc pmt_buf, pmt_ctx
               pkt = pmt_buf
             when my_pids.has p.pid
               if p.h264_iframe and current_ts >= current_segment.target_timestamp
