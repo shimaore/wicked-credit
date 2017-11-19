@@ -226,6 +226,14 @@ Set of PIDs that carry PMT.
 
       psi_pids = null
 
+PCR estimator
+
+      ### PCR_CLOCK_ESTIMATE
+      non_pcr_packets = 0
+      pcr_clock = null
+      pcr_per_packet_estimate = null
+      ###
+
 PCR PID
 
       pcr_pid = null
@@ -302,6 +310,10 @@ in which case we need to account for its length.
 
           p = 4
 
+          ### PCR_CLOCK_ESTIMATE
+          non_pcr_packets++
+          ###
+
           if adaptation_field_present
             adaptation_field_length = ts_packet.readUInt8 p++
             ts_payload_offset += 1 + adaptation_field_length
@@ -314,6 +326,33 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             ts_random_access_indicator = (adaptation_field & 0x40) > 0
             ts_pcr_flag = (adaptation_field & 0x10) > 0
             # ts_extension_flag = (adaptation_field & 0x01) > 0
+
+            ### PCR_CLOCK_ESTIMATE
+            if ts_discontinuity_indicator
+              non_pcr_packets = 0
+              pcr_clock = null
+              # Keep the pcr_per_packet_estimate
+
+            if ts_pcr_flag
+              ts_pcr_high = ts_packet.readUInt32BE p
+              p += 4
+              ts_pcr_low = ts_packet.readUInt16BE p
+              p += 2
+              ts_bit = if ts_pcr_low & 0x8000 then 1 else 0
+              clock = ts_pcr_high * 600 + ts_bit * 300 + (ts_pcr_low & 0x01ff)
+
+              if non_pcr_packets > 0
+                pcr_per_packet_estimate = clock / non_pcr_packets
+
+              pcr_clock = clock
+              non_pcr_packets = 0
+            else
+              if pcr_clock?
+                if pcr_per_packet_estimate
+                  pcr_clock += pcr_per_packet_estimate
+                else
+                  pcr_clock = null
+            ###
 
           data = {
             pid
