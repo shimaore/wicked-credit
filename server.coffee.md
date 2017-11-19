@@ -671,7 +671,8 @@ those TS packets whose PID are in our desired set
             when my_pids.has pid
               pkt
             else
-              null
+              # null
+              pkt
 
         return
 
@@ -878,7 +879,7 @@ buffer up to `buffer_size` octets,
                 yield ts_buf_append pmt_buf
 
             else
-              pkt = null
+              # pkt = null
 
           heal ts_buf_append pkt
 
