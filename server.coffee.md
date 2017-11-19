@@ -618,6 +618,8 @@ Create the outbound socket.
 
       send = (packets) ->
 
+        packets = packets.filter (x) -> x?
+
 If we have at least one TS packet to transmit,
 
         nb_packets = packets.length
@@ -662,13 +664,13 @@ those TS packets whose PID are in our desired set
           pkt = p.ts_packet
           switch
             when pid is 0
-              pat_buf ? FILLER
+              pat_buf ? null
             when pid is pmt_pid
-              pmt_buf ? FILLER
+              pmt_buf ? null
             when my_pids.has pid
               pkt
             else
-              FILLER
+              null
 
         return
 
@@ -820,6 +822,7 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 buffer up to `buffer_size` octets,
 
       ts_buf_append = (buf) ->
+        return unless buf?
         # assert buf.length is TS_PACKET_LENGTH
         buf.copy ts_buf, ts_buf_index, 0, TS_PACKET_LENGTH
         ts_buf_index += TS_PACKET_LENGTH
@@ -874,7 +877,7 @@ buffer up to `buffer_size` octets,
                 yield ts_buf_append pmt_buf
 
             else
-              pkt = FILLER
+              pkt = null
 
           heal ts_buf_append pkt
 
