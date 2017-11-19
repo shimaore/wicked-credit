@@ -123,7 +123,7 @@ Set PID
 Set Continuity Counter
 
     set_cc = (ts_packet,ctx) ->
-      ts_packet.writeUInt8 (ctx.cc + 0xf0 & ts_packet.readUInt8 3)
+      ts_packet.writeUInt8 (ctx.cc + 0xf0 & ts_packet.readUInt8 3), 3
       ctx.cc = 0x0f & (ctx.cc+1)
       ts_packet
 
