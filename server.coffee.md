@@ -367,6 +367,7 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             ts_random_access_indicator
             ts_pcr_flag
             pcr_pid
+            received_ts
             # pcr_clock ### PCR_CLOCK_ESTIMATE
           }
 
@@ -797,14 +798,14 @@ and record its metadata as the current segment.
         m3u8_file = fs.createWriteStream path.join directory, m3u8
         yield promisify m3u8_file, m3u8_file.write, """
           #EXTM3U
-          #EXT-X-VERSION:1
+          #EXT-X-VERSION:3
           #EXT-X-TARGETDURATION:#{target_duration//1000}
           #EXT-X-MEDIA-SEQUENCE:#{segments[0].timestamp}
 
         """
         for segment in segments
           yield promisify m3u8_file, m3u8_file.write, """
-            #EXTINF:#{segment.duration//1000},
+            #EXTINF:#{segment.duration/1000},
             #{base_uri}/#{segment.filename}
 
           """
