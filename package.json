@@ -1,6 +1,6 @@
 {
   "name": "wicked-credit",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "TS per-PID remuxer",
   "main": "index.js",
   "scripts": {
