@@ -185,6 +185,33 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 
       last_ts_packet = null
 
+      ts_packet_handler = seem (p,current_ts) ->
+        if last_ts_packet and p.received_ts isnt last_ts_packet + 1
+          debug "Out of order #{p.received_ts - last_ts_packet+1}"
+        last_ts_packet = p.received_ts
+
+        if p.h264_iframe and current_ts >= current_segment.target_timestamp
+          heal ts_buf_flush()
+          yield rotate_ts_file()
+          yield ts_buf_append sdt()
+          yield ts_buf_append pat()
+          yield ts_buf_append pmt()
+
+        {pid,pcr_pid} = p
+        pkt = p.ts_packet
+        pkt = switch
+          when pid is 0
+            pat()
+          when pid is pmt_pid
+            pmt()
+          when pid is pcr_pid or my_pids.has pid
+            pkt
+          else
+            null
+
+        heal ts_buf_append pkt
+        return
+
       receiver.on 'ts_packets', hand (ts_packets) ->
 
         return unless last_opts?
@@ -192,33 +219,7 @@ For each inbound UDP packet that was split into TS packets by the receiver,
         current_ts = Date.now()
 
         for p in ts_packets
-          yield do seem (p) ->
-            if last_ts_packet and p.received_ts isnt last_ts_packet + 1
-              debug "Out of order #{p.received_ts - last_ts_packet+1}"
-            last_ts_packet = p.received_ts
-
-            if p.h264_iframe and current_ts >= current_segment.target_timestamp
-              heal ts_buf_flush()
-              yield rotate_ts_file()
-              yield ts_buf_append sdt()
-              yield ts_buf_append pat()
-              yield ts_buf_append pmt()
-
-            {pid,pcr_pid} = p
-            pkt = p.ts_packet
-            pkt = switch
-              when pid is 0
-                pat()
-              when pid is pmt_pid
-                pmt()
-              when pid is pcr_pid or my_pids.has pid
-                pkt
-              else
-                null
-
-            heal ts_buf_append pkt
-            return
-
+          yield ts_packet_handler p, current_ts
         return
 
       return
