@@ -159,6 +159,7 @@ buffer up to `buffer_size` octets,
 
       pmt_pid = null
       last_opts = null
+
       sdt_ctx = cc:0
       pat_ctx = cc:0
       pmt_ctx = cc:0
@@ -167,14 +168,20 @@ buffer up to `buffer_size` octets,
       pat = -> if last_opts? then make_pat last_opts, pat_ctx else null
       pmt = -> if last_opts? then make_pmt pids, last_opts, pmt_ctx else null
 
+Handle PMT indications
+----------------------
+
       receiver.on 'pmt', hand (opts) ->
-        last_opts = opts
         {pmt_pid} = opts
+        last_opts = opts
         if not current_segment.file?
           yield rotate_ts_file()
           yield ts_buf_append sdt()
           yield ts_buf_append pat()
           yield ts_buf_append pmt()
+        return
+
+For each inbound UDP packet that was split into TS packets by the receiver,
 
       last_ts_packet = null
 
@@ -184,29 +191,32 @@ buffer up to `buffer_size` octets,
 
         current_ts = Date.now()
 
-        for p in ts_packets
+        ts_packets.forEach (p) ->
           if last_ts_packet and p.ts_packet.ts_received isnt last_ts_packet + 1
             debug "Out of order #{p.ts_packet.ts_received - last_ts_packet+1}"
           last_ts_packet = p.ts_packet.ts_received
 
-          pkt = p.ts_packet
-          switch
-            when p.pid is 0
-              pkt = pat()
-            when p.pid is pmt_pid
-              pkt = pmt()
-            when my_pids.has p.pid
-              if p.h264_iframe and current_ts >= current_segment.target_timestamp
-                heal ts_buf_flush()
-                yield rotate_ts_file()
-                yield ts_buf_append sdt()
-                yield ts_buf_append pat()
-                yield ts_buf_append pmt()
+          if p.h264_iframe and current_ts >= current_segment.target_timestamp
+            heal ts_buf_flush()
+            yield rotate_ts_file()
+            yield ts_buf_append sdt()
+            yield ts_buf_append pat()
+            yield ts_buf_append pmt()
 
+          {pid,pcr_pid} = p
+          pkt = p.ts_packet
+          pkt = switch
+            when pid is 0
+              pat()
+            when pid is pmt_pid
+              pmt()
+            when pid is pcr_pid or my_pids.has pid
+              pkt
             else
-              pkt = null
+              null
 
           heal ts_buf_append pkt
+          return
 
         return
 

@@ -62,10 +62,15 @@ Collect statistics.
 
       pmt_pid = null
       last_opts = null
+
       pat_ctx = cc:0
       pmt_ctx = cc:0
+
       pat = -> if last_opts? then make_pat last_opts, pat_ctx else null
       pmt = -> if last_opts? then make_pmt pids, last_opts, pmt_ctx else null
+
+Handle PMT indications
+----------------------
 
       receiver.on 'pmt', (opts) ->
         {pmt_pid} = opts
@@ -93,7 +98,7 @@ those TS packets whose PID are in our desired set
               pat()
             when pid is pmt_pid
               pmt()
-            when my_pids.has pid
+            when pid is pcr_pid or my_pids.has pid
               pkt
             else
               null
