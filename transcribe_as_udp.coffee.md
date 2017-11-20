@@ -87,12 +87,12 @@ our list of TS packets consists of
 those TS packets whose PID are in our desired set
 
         send ts_packets.map (p) ->
-          pkt = p.ts_packet
-          if last_ts_packet and pkt.ts_received isnt last_ts_packet + 1
-            debug "Out of order #{pkt.ts_received - last_ts_packet+1}"
-          last_ts_packet = pkt.ts_received
+          if last_ts_packet and p.received_ts isnt last_ts_packet + 1
+            debug "Out of order #{p.received_ts - last_ts_packet+1}"
+          last_ts_packet = p.received_ts
 
           {pid,pcr_pid} = p
+          pkt = p.ts_packet
           switch
             when pid is 0
               pat()

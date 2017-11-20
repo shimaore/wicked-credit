@@ -193,10 +193,9 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 
         for p in ts_packets
           yield do (p) ->
-            pkt = p.ts_packet
-            if last_ts_packet and pkt.ts_received isnt last_ts_packet + 1
-              debug "Out of order #{pkt.ts_received - last_ts_packet+1}"
-            last_ts_packet = pkt.ts_received
+            if last_ts_packet and p.received_ts isnt last_ts_packet + 1
+              debug "Out of order #{p.received_ts - last_ts_packet+1}"
+            last_ts_packet = p.received_ts
 
             if p.h264_iframe and current_ts >= current_segment.target_timestamp
               heal ts_buf_flush()
@@ -206,6 +205,7 @@ For each inbound UDP packet that was split into TS packets by the receiver,
               yield ts_buf_append pmt()
 
             {pid,pcr_pid} = p
+            pkt = p.ts_packet
             pkt = switch
               when pid is 0
                 pat()
