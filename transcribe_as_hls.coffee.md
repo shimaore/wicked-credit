@@ -191,32 +191,33 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 
         current_ts = Date.now()
 
-        ts_packets.forEach (p) ->
-          if last_ts_packet and p.ts_packet.ts_received isnt last_ts_packet + 1
-            debug "Out of order #{p.ts_packet.ts_received - last_ts_packet+1}"
-          last_ts_packet = p.ts_packet.ts_received
+        for p in ts_packets
+          yield do (p) ->
+            pkt = p.ts_packet
+            if last_ts_packet and pkt.ts_received isnt last_ts_packet + 1
+              debug "Out of order #{pkt.ts_received - last_ts_packet+1}"
+            last_ts_packet = pkt.ts_received
 
-          if p.h264_iframe and current_ts >= current_segment.target_timestamp
-            heal ts_buf_flush()
-            yield rotate_ts_file()
-            yield ts_buf_append sdt()
-            yield ts_buf_append pat()
-            yield ts_buf_append pmt()
+            if p.h264_iframe and current_ts >= current_segment.target_timestamp
+              heal ts_buf_flush()
+              yield rotate_ts_file()
+              yield ts_buf_append sdt()
+              yield ts_buf_append pat()
+              yield ts_buf_append pmt()
 
-          {pid,pcr_pid} = p
-          pkt = p.ts_packet
-          pkt = switch
-            when pid is 0
-              pat()
-            when pid is pmt_pid
-              pmt()
-            when pid is pcr_pid or my_pids.has pid
-              pkt
-            else
-              null
+            {pid,pcr_pid} = p
+            pkt = switch
+              when pid is 0
+                pat()
+              when pid is pmt_pid
+                pmt()
+              when pid is pcr_pid or my_pids.has pid
+                pkt
+              else
+                null
 
-          heal ts_buf_append pkt
-          return
+            heal ts_buf_append pkt
+            return
 
         return
 
