@@ -192,7 +192,7 @@ For each inbound UDP packet that was split into TS packets by the receiver,
         current_ts = Date.now()
 
         for p in ts_packets
-          yield do (p) ->
+          yield do seem (p) ->
             if last_ts_packet and p.received_ts isnt last_ts_packet + 1
               debug "Out of order #{p.received_ts - last_ts_packet+1}"
             last_ts_packet = p.received_ts
