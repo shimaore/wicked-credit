@@ -133,7 +133,9 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 buffer up to `buffer_size` octets,
 
       ts_buf_append = (buf) ->
-        return unless buf?
+        if not buf?
+          return Promise.resolve()
+
         # assert buf.length is TS_PACKET_LENGTH
         buf.copy ts_buf, ts_buf_index, 0, TS_PACKET_LENGTH
         ts_buf_index += TS_PACKET_LENGTH
@@ -143,11 +145,16 @@ buffer up to `buffer_size` octets,
           Promise.resolve()
 
       ts_buf_flush = ->
-        if ts_buf_index > 0
-          save_buf = Buffer.from(ts_buf).slice 0, ts_buf_index
-          ts_buf_index = 0
-          if current_segment.file?
-            return promisify current_segment.file, current_segment.file.write, save_buf
+        if not ts_buf_index > 0
+          return Promise.resolve()
+
+        actually_save = current_segment.file?
+        if actually_save
+          save_buf = Buffer.alloc ts_buf_index
+          ts_buf.copy save_buf, 0, 0, ts_buf_index
+        ts_buf_index = 0
+        if actually_save
+          return promisify current_segment.file, current_segment.file.write, save_buf
         Promise.resolve()
 
       pmt_pid = null
