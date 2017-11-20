@@ -103,13 +103,15 @@ and record its metadata as the current segment.
 
 #### Build an M3U8 playlist
 
+      m3u8_sequence = Date.now()
+
       generate_m3u8 = seem ->
         m3u8_file = fs.createWriteStream path.join directory, m3u8
         yield promisify m3u8_file, m3u8_file.write, """
           #EXTM3U
           #EXT-X-VERSION:3
           #EXT-X-TARGETDURATION:#{target_duration//1000}
-          #EXT-X-MEDIA-SEQUENCE:#{segments[0].timestamp}
+          #EXT-X-MEDIA-SEQUENCE:#{m3u8_sequence}
 
         """
         for segment in segments
@@ -120,6 +122,7 @@ and record its metadata as the current segment.
           """
 
         yield promisify m3u8_file, m3u8_file.end
+        m3u8_sequence++
         return
 
 #### Process incoming data
