@@ -258,7 +258,7 @@ The PES payload starts with 00 00 01 (packet start code prefix),
 
             pes_start = ts_packet.readUInt32BE ts_payload_offset
 
-            if pes_start & 0xffffff00 isnt 0x00000100
+            if (pes_start & 0xffffff00) isnt 0x00000100
               debug.dev "Invalid PES start code prefix in #{pes_start.toString 16} on PID #{pid}."
               return data
 
