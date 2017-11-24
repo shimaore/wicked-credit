@@ -207,7 +207,9 @@ For each inbound UDP packet that was split into TS packets by the receiver,
             pat()
           when pid is pmt_pid
             pmt()
-          when pid is pcr_pid or my_pids.has pid
+          when my_pids.has pid
+            pkt
+          when pid is pcr_pid and not opts.ignore_pcr
             pkt
           else
             null

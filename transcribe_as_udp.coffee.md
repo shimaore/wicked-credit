@@ -98,7 +98,9 @@ those TS packets whose PID are in our desired set
               pat()
             when pid is pmt_pid
               pmt()
-            when pid is pcr_pid or my_pids.has pid
+            when my_pids.has pid
+              pkt
+            when pid is pcr_pid and not opts.ignore_pcr
               pkt
             else
               null
