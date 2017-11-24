@@ -94,7 +94,7 @@ Build the list of TS packets,
 
           received_ts++
 
-slicing the original (received) buffer into TS-packet-lenght chunks,
+slicing the original (received) buffer into TS-packet-length chunks,
 
           ts_packet = msg.slice i*TS_PACKET_LENGTH, (i+1)*TS_PACKET_LENGTH
 
@@ -250,7 +250,18 @@ Map ES PIDs to their PMT (binary/Buffer) description
 
           if pusi and payload_present
 
+            if ts_payload_offset+3 > TS_PACKET_LENGTH
+              debug.dev "Invalid ts_payload_offset #{ts_payload_offset} on PID #{pid}, adaptation field length is #{adaptation_field_length}."
+              return
+
 The PES payload starts with 00 00 01 (packet start code prefix),
+
+            pes_start = ts_packer.readUInt32BE ts_payload_offset
+
+            if pes_start & 0xffffff00 isnt 0x00000100
+              debug.dev "Invalid PES start code prefix in #{pes_start.toString 16} on PID #{pid}."
+              return
+
 while the fourth octet is the PES stream id
 
             pes_stream_id = ts_packet.readUInt8 ts_payload_offset + 3
