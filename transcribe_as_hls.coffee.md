@@ -103,7 +103,7 @@ and record its metadata as the current segment.
 
 #### Build an M3U8 playlist
 
-      m3u8_sequence = Date.now()
+      m3u8_sequence = Date.now() // 1000
 
       generate_m3u8 = seem ->
         m3u8_file = fs.createWriteStream path.join directory, m3u8
