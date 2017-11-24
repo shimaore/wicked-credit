@@ -100,7 +100,7 @@ those TS packets whose PID are in our desired set
               pmt()
             when my_pids.has pid
               pkt
-            when pid is pcr_pid and not opts.ignore_pcr
+            when pid is pcr_pid and opts.add_pcr
               pkt
             else
               null
