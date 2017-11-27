@@ -119,7 +119,7 @@ in order to extract the ES' PID;
 
           transport_error = (header & 0x00800000)
           if transport_error
-            debug.dev "Transport error on PID #{pid}."
+            debug.dev "PID #{pid}: Transport error."
             return data
 
 #### PES Framing
@@ -203,7 +203,7 @@ In the first octet of the adaptation field itself we find the discontinuity indi
               table_id = ts_packet.readUInt8 psi_offset + 0
               # console.log "PSI #{table_id}", ts_packet.slice(psi_offset).toString 'hex'
             else
-              debug.dev "PID #{pid}: PSI Offset #{psi_offset} >= #{TS_PACKET_LENGTH}"
+              debug.dev "PID #{pid}: PSI Offset #{psi_offset} >= #{TS_PACKET_LENGTH}, pointer_field = #{pointer_field}"
               return data
 
 #### PAT (H.220.0 section 2.4.4.3)
@@ -284,7 +284,7 @@ Nor are those used by DVB metadata, see [wikipedia](https://en.wikipedia.org/wik
           if pusi and payload_present
 
             if ts_payload_offset+3 > TS_PACKET_LENGTH
-              debug.dev "Invalid ts_payload_offset #{ts_payload_offset} on PID #{pid}, adaptation field length is #{adaptation_field_length}."
+              debug.dev "PID #{pid}: Invalid ts_payload_offset #{ts_payload_offset}, adaptation field length is #{adaptation_field_length}."
               return data
 
 The PES payload starts with 00 00 01 (packet start code prefix),
@@ -292,7 +292,7 @@ The PES payload starts with 00 00 01 (packet start code prefix),
             pes_start = ts_packet.readUInt32BE ts_payload_offset
 
             if (pes_start & 0xffffff00) isnt 0x00000100
-              debug.dev "Invalid PES start code prefix in #{pes_start.toString 16} on PID #{pid}."
+              debug.dev "PID #{pid}: Invalid PES start code prefix in #{pes_start.toString 16}."
               return data
 
 while the fourth octet is the PES stream id
