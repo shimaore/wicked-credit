@@ -127,4 +127,3 @@ Note: older Node.js do not support `setMulticastInterface`, again one should pro
         t.setMulticastInterface? source.address if multicast
 
       return
-
