@@ -102,7 +102,7 @@ reading the header of each TS packet
 
           sync_byte = (header >> 24) & 0xff
           unless sync_byte is 0x47
-            debug.dev "Invalid sync byte in header #{header.toString 16} (frame #{i}/#{nb_packets}, received #{received_udp} UDP / #{received_ts} TS)."
+            debug.dev "Invalid sync byte in header #{header.toString 16} (frame #{i}/#{nb_packets}, received #{received_udp} UDP / #{received_ts} TS) from #{rinfo.family}/#{rinfo.address}:#{rinfo.port}."
             return null
 
 in order to extract the ES' PID;
