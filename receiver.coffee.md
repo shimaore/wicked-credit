@@ -102,9 +102,25 @@ reading the header of each TS packet
 
           header = ts_packet.readUInt32BE 0
 
+          sync_byte = (header & 0xff000000) >> 8
+          unless sync_byte is 0x47
+            debug.dev "Invalid sync byte in header #{header.toString 16}."
+            return null
+
 in order to extract the ES' PID;
 
           pid = (header & 0x001fff00) >> 8
+
+          data = {
+            pid
+            ts_packet
+            received_ts
+          }
+
+          transport_error = (header & 0x00800000)
+          if transport_error
+            debug.dev "Transport error on PID #{pid}."
+            return data
 
 #### PES Framing
 
@@ -142,6 +158,11 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             ts_pcr_flag = (adaptation_field & 0x10) > 0
             # ts_extension_flag = (adaptation_field & 0x01) > 0
 
+            data.ts_discontinuity_indicator = ts_discontinuity_indicator
+            data.ts_random_access_indicator = ts_random_access_indicator
+            data.ts_pcr_flag                = ts_pcr_flag
+            data.pcr_pid                    = pcr_pid
+
             ### PCR_CLOCK_ESTIMATE
             if ts_discontinuity_indicator
               non_pcr_packets = 0
@@ -168,17 +189,6 @@ In the first octet of the adaptation field itself we find the discontinuity indi
                 else
                   pcr_clock = null
             ###
-
-          data = {
-            pid
-            ts_packet
-            ts_discontinuity_indicator
-            ts_random_access_indicator
-            ts_pcr_flag
-            pcr_pid
-            received_ts
-            # pcr_clock ### PCR_CLOCK_ESTIMATE
-          }
 
           # console.log "TS #{received_ts} PID #{pid} pusi=#{pusi} disc=#{ts_discontinuity_indicator} rai=#{ts_random_access_indicator} pcr=#{ts_pcr_flag} #{pcr_pid}" if ts_pcr_flag
 
@@ -399,7 +409,7 @@ Finally build a data structure to hold the PID, TS packet, and other information
 
 For each received UDP packet we emit one message towards the sending side, with an array containing the series of `{pid,ts_packets}` from the input.
 
-        r.emit 'ts_packets', ts_packets
+        r.emit 'ts_packets', ts_packets.filter (x) -> x?
 
         return
 
