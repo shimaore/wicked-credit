@@ -190,7 +190,7 @@ For each inbound UDP packet that was split into TS packets by the receiver,
 
       ts_packet_handler = seem (p,current_ts) ->
         if last_ts_packet and p.received_ts isnt last_ts_packet + 1
-          debug "Out of order #{p.received_ts - last_ts_packet+1}"
+          debug "Out of order, skipped #{p.received_ts - last_ts_packet+1}"
         last_ts_packet = p.received_ts
 
         if p.h264_iframe and current_ts >= current_segment.target_timestamp
