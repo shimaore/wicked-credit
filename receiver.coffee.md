@@ -219,6 +219,8 @@ In the first octet of the adaptation field itself we find the discontinuity indi
               psi_pids.add psi_id
               debug "Added PSI ID #{psi_id}"
 
+No further processing for PAT, CAT, TSDT or IPMP.
+
           if pid < 4
             return data
 
@@ -260,7 +262,19 @@ Map ES PIDs to their PMT (binary/Buffer) description
 
 #### PES only
 
+PSI are not PES, obviously.
+
           return data if table_id?
+
+Nor are these (per table 2-3 of H.220.0).
+
+          return data if pid < 16 or pid is 0x1fff
+
+Nor are those used by DVB metadata, see [wikipedia](https://en.wikipedia.org/wiki/MPEG_transport_stream#cite_note-PID_used_by_DVB-10) which references in particular EN. 300 468 (v1.13.1 ed.). ETSI. 2012. p. 20.
+
+          return data if pid < 32 or pid is 8187
+
+          # FIXME: Really we should use the PMT to know which streams are PES.
 
 #### Keyframe detection
 
