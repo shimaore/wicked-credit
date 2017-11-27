@@ -189,8 +189,12 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             pointer_field = ts_packet.readUInt8 ts_payload_offset
             psi_offset = ts_payload_offset + 1 + pointer_field
 
-            table_id = ts_packet.readUInt8 psi_offset + 0
-            # console.log "PSI #{table_id}", ts_packet.slice(psi_offset).toString 'hex'
+            if psi_offset < TS_PACKET_LENGTH
+              table_id = ts_packet.readUInt8 psi_offset + 0
+              # console.log "PSI #{table_id}", ts_packet.slice(psi_offset).toString 'hex'
+            else
+              debug.dev "PID #{pid}: PSI Offset #{psi_offset} >= #{TS_PACKET_LENGTH}"
+              return data
 
 #### PAT (H.220.0 section 2.4.4.3)
 
