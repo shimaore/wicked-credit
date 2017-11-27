@@ -39,7 +39,7 @@ The receiver is responsible for handling incoming UDP packets, and split them in
 
 Set of PIDs that carry PMT.
 
-      psi_pids = null
+      psi_pids = new Set
 
 PCR estimator
 
@@ -201,9 +201,13 @@ In the first octet of the adaptation field itself we find the discontinuity indi
           if table_id is 0
 
             pat_len = 0x03ff & ts_packet.readUInt16BE psi_offset + 1
-            nb_pmt = (pat_len - 4 - 5) // 4
-            psi_pids = new Set [0...nb_pmt].map (i) ->
-              0x1fff & ts_packet.readUInt16BE 4*i + psi_offset + 10
+            nb_psi = (pat_len - 4 - 5) // 4
+            # FIXME: This used to say   psi_pids = new Set …
+            #        Replace with multiple receivers for TS pakcets and a generic Muxer (with the PSI table)?
+            [0...nb_psi].forEach (i) ->
+              psi_id = 0x1fff & ts_packet.readUInt16BE 4*i + psi_offset + 10
+              psi_pids.add psi_id
+              debug "Added PSI ID #{psi_id}"
 
           if pid < 4
             return data
