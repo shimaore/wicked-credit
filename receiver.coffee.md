@@ -216,8 +216,9 @@ In the first octet of the adaptation field itself we find the discontinuity indi
             #        Replace with multiple receivers for TS pakcets and a generic Muxer (with the PSI table)?
             [0...nb_psi].forEach (i) ->
               psi_id = 0x1fff & ts_packet.readUInt16BE 4*i + psi_offset + 10
-              psi_pids.add psi_id
-              debug "Added PSI ID #{psi_id}"
+              unless psi_pids.has psi_id
+                psi_pids.add psi_id
+                debug "Added PSI ID #{psi_id}"
 
 No further processing for PAT, CAT, TSDT or IPMP.
 
