@@ -102,7 +102,7 @@ reading the header of each TS packet
 
           header = ts_packet.readUInt32BE 0
 
-          sync_byte = (header & 0xff000000) >> 8
+          sync_byte = (header >> 8) & 0xff
           unless sync_byte is 0x47
             debug.dev "Invalid sync byte in header #{header.toString 16}."
             return null
