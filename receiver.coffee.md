@@ -149,6 +149,10 @@ in which case we need to account for its length.
             adaptation_field_length = ts_packet.readUInt8 p++
             ts_payload_offset += 1 + adaptation_field_length
 
+            if ts_payload_offset > TS_PACKET_LENGTH
+              debug.dev "PID #{pid}: Invalid ts_payload_offset #{ts_payload_offset}, adaptation field length is #{adaptation_field_length}."
+              return data
+
 In the first octet of the adaptation field itself we find the discontinuity indicator and the random access indicator
 (these are normally only used with MPEG streams).
 
@@ -305,6 +309,10 @@ If the PES indicates we are effectively dealing with video,
 
             if (pes_stream_id & 0xf0) is 0xe0 # video
 
+              if ts_payload_offset+8 > TS_PACKET_LENGTH
+                debug.dev "PID #{pid}: Invalid ts_payload_offset #{ts_payload_offset} to access PES stream."
+                return data
+
 let's keep that ES as our video ES,
 
               h264_video_pid = pid
@@ -324,6 +332,10 @@ Then skip the PES optional fields
 and access the PES payload.
 
               pes_payload_offset = ts_payload_offset + 8 + 1 + pes_optional_field_length
+
+              if pes_payload_offset > TS_PACKET_LENGTH
+                debug.dev "PID #{pid}: Invalid or empty PES payload: pes_payload_offset #{pes_payload_offset}, pes_optional_field_length #{pes_optional_field_length}."
+                return data
 
           data.pes_data_alignment_indicator = pes_data_alignment_indicator
 
