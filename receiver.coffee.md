@@ -18,11 +18,9 @@ Statistics
 
     received_udp = 0
     received_ts  = 0
-    sent_udp = 0
-    sent_ts = 0
     reporter = ->
       console.log """
-        Received: #{received_udp} UDP, #{received_ts} TS. Sent: #{sent_udp} UDP, #{sent_ts} TS.
+        Received: #{received_udp} UDP, #{received_ts} TS.
       """
     # setInterval reporter, 1000
 
