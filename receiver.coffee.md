@@ -371,16 +371,7 @@ and to get things started, look for an H.264 start code pattern in the buffer (p
 
 In both cases, save the last octets of the current buffer into the last-pad.
 
-            pad_start = h264_nal_unit_length - h264_last_pad.length
-            switch
-              when pad_start < -h264_last_pad.length
-                debug.dev "H.264 PAD #{pad_start} is out of range"
-              when pad_start < 0
-                h264_buf.copy h264_last_pad, h264_last_pad.length+pad_start
-              when pad_start > h264_buf.length
-                debug.dev "H.264 PAD #{pad_start} is out of range"
-              else
-                h264_buf.copy h264_last_pad, 0, pad_start
+            ts_packet.copy h264_last_pad, 0, TS_PACKET_LENGTH-h264_last_pad.length, h264_last_pad.length
 
 The keyframe detection start in earnest.
 
