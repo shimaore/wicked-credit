@@ -123,4 +123,4 @@ Program Map Table per H.220.0 section 2.4.4.8
       make_frame pmt_hdr, pmt_src
 
 
-    module.exports = {make_sdt,make_pat,make_pmt}
+    module.exports = {make_sdt,make_pat,make_pmt,set_pid,set_cc}
